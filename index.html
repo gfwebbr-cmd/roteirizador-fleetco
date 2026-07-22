@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roteirizador FleetCo — Serra Gaúcha</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt:#14171c;
+    --asphalt-2:#1b2028;
+    --card:#1f2530;
+    --card-hi:#262d3a;
+    --line:#333c4a;
+    --text:#e9edf3;
+    --muted:#8b93a3;
+    --amber:#a875ff;
+    --amber-dim:#5b3f8f;
+    --teal:#39c9a7;
+    --danger:#e8615a;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--asphalt);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+  .app{
+    background:
+      radial-gradient(circle at 15% 0%, #202836 0%, transparent 45%),
+      var(--asphalt);
+    min-height:100vh;
+    padding:28px 18px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  /* header */
+  .hdr{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;border-bottom:1px dashed var(--line);padding-bottom:18px;}
+  .hdr h1{
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:800;
+    font-size:clamp(28px,4vw,42px);
+    letter-spacing:0.5px;
+    margin:0;
+    line-height:1;
+    text-transform:uppercase;
+  }
+  .hdr h1 span{color:var(--amber);}
+  .hdr p{margin:6px 0 0;color:var(--muted);font-size:14px;max-width:520px;}
+  .plate{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--asphalt);
+    background:var(--amber);
+    padding:6px 12px;
+    border-radius:6px;
+    font-weight:600;
+    letter-spacing:1px;
+    white-space:nowrap;
+  }
+
+  /* layout */
+  .grid{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;}
+  @media (max-width:880px){.grid{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+  }
+  .card h2{
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:700;
+    font-size:19px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    margin:0 0 14px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block;}
+
+  label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;}
+  label:first-of-type{margin-top:0;}
+
+  select, input[type=text]{
+    width:100%;
+    background:var(--asphalt-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+    outline:none;
+  }
+  select:focus, input[type=text]:focus{border-color:var(--amber);}
+
+  .search-row{position:relative;}
+  .suggestions{
+    position:absolute;top:100%;left:0;right:0;
+    background:var(--card-hi);
+    border:1px solid var(--line);
+    border-top:none;
+    border-radius:0 0 8px 8px;
+    max-height:220px;
+    overflow-y:auto;
+    z-index:20;
+    display:none;
+  }
+  .suggestions.show{display:block;}
+  .sugg-item{padding:9px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--line);}
+  .sugg-item:last-child{border-bottom:none;}
+  .sugg-item:hover{background:var(--asphalt-2);color:var(--amber);}
+  .sugg-empty{padding:9px 12px;font-size:13px;color:var(--muted);}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .chip{
+    display:flex;align-items:center;gap:6px;
+    background:var(--asphalt-2);
+    border:1px solid var(--line);
+    padding:6px 6px 6px 12px;
+    border-radius:20px;
+    font-size:13px;
+  }
+  .chip button{
+    background:var(--line);border:none;color:var(--text);
+    width:18px;height:18px;border-radius:50%;cursor:pointer;
+    font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;
+  }
+  .chip button:hover{background:var(--danger);}
+  .chips-empty{color:var(--muted);font-size:13px;margin-top:10px;}
+
+  .btn{
+    margin-top:18px;
+    width:100%;
+    background:var(--amber);
+    color:var(--asphalt);
+    border:none;
+    padding:13px 16px;
+    border-radius:8px;
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:700;
+    font-size:17px;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  .btn:hover{background:#bd97ff;}
+  .btn:disabled{background:var(--line);color:var(--muted);cursor:not-allowed;}
+  .btn-secondary{
+    background:transparent;border:1px solid var(--teal);color:var(--teal);
+  }
+  .btn-secondary:hover{background:rgba(57,201,167,0.1);}
+
+  /* results */
+  #map{height:260px;border-radius:var(--radius);border:1px solid var(--line);margin-bottom:16px;background:#0e1116;}
+  .stats{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .stat{
+    background:var(--asphalt-2);border:1px solid var(--line);border-radius:8px;
+    padding:10px 16px;flex:1;min-width:120px;
+  }
+  .stat .num{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;color:var(--amber);}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+
+  .route{list-style:none;margin:0;padding:0;position:relative;}
+  .route::before{
+    content:"";position:absolute;left:17px;top:8px;bottom:8px;width:2px;
+    background:repeating-linear-gradient(to bottom, var(--amber-dim) 0 6px, transparent 6px 12px);
+  }
+  .stop{position:relative;padding:0 0 22px 46px;}
+  .stop:last-child{padding-bottom:0;}
+  .badge{
+    position:absolute;left:0;top:0;
+    width:36px;height:36px;border-radius:8px;
+    background:var(--asphalt-2);border:2px solid var(--amber-dim);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13px;color:var(--amber);
+  }
+  .stop.origin .badge, .stop.dest .badge{background:var(--amber);color:var(--asphalt);border-color:var(--amber);}
+  .stop-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;text-transform:uppercase;letter-spacing:0.3px;}
+  .stop-tag{font-size:10px;color:var(--asphalt);background:var(--teal);padding:2px 7px;border-radius:4px;margin-left:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;vertical-align:2px;}
+  .stop-leg{font-size:12.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px;}
+
+  .empty-state{color:var(--muted);font-size:14px;text-align:center;padding:40px 10px;}
+  .empty-state svg{opacity:0.4;margin-bottom:10px;}
+
+  .action-row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  .maps-link, .waze-link{
+    flex:1;min-width:180px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    text-align:center;
+    padding:12px;border-radius:8px;text-decoration:none;border:none;cursor:pointer;
+    font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:0.5px;
+  }
+  .maps-link{background:var(--teal);color:var(--asphalt);}
+  .maps-link:hover{background:#4fe0bb;}
+  .waze-link{background:#25D366;color:#0a2e17;}
+  .waze-link:hover{background:#2fe377;}
+  .maps-note{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;}
+  .loading-note{font-size:12.5px;color:var(--muted);text-align:center;padding:16px;}
+  .route-error{font-size:12px;color:var(--danger);text-align:center;margin-top:8px;}
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="app"><div class="wrap">
+
+  <div class="hdr">
+    <div>
+      <h1>Rot<span>e</span>irizador de Entregas FleetCo</h1>
+      <p>Monte a rota de entrega escolhendo origem, destino e os bairros a visitar. A ordem é calculada automaticamente para o menor percurso.</p>
+    </div>
+    <div class="plate">SERRA GAÚCHA · RS</div>
+  </div>
+
+  <div class="grid">
+    <!-- CONTROLS -->
+    <div class="card">
+      <h2><span class="dot"></span>Configurar rota</h2>
+
+      <label for="origin">Ponto de partida</label>
+      <select id="origin"></select>
+
+      <label for="dest">Ponto de chegada</label>
+      <select id="dest"></select>
+
+      <label for="search">Adicionar bairro à rota</label>
+      <div class="search-row">
+        <input type="text" id="search" placeholder="Digite o nome do bairro..." autocomplete="off">
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+
+      <div class="chips" id="chips"></div>
+      <div class="chips-empty" id="chipsEmpty">Nenhum bairro adicionado ainda.</div>
+
+      <button class="btn" id="generateBtn" disabled>Gerar roteiro</button>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="card">
+      <h2><span class="dot"></span>Roteiro otimizado</h2>
+      <div id="map"></div>
+      <div id="resultsBody">
+        <div class="empty-state">
+          <div>Configure a rota ao lado e clique em<br><strong>"Gerar roteiro"</strong> para ver a sequência de entregas.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ---------- BASE DE BAIRROS E CIDADES (Caxias do Sul e região) ----------
+const DB = [
+  // Caxias do Sul - bairros
+  {name:"Desvio Rizzo", lat:-29.1937916, lon:-51.2380464, city:"Caxias do Sul"},
+  {name:"São Cristóvão", lat:-29.1262618, lon:-51.1141183, city:"Caxias do Sul"},
+  {name:"Panazzolo", lat:-29.1777611, lon:-51.1731901, city:"Caxias do Sul"},
+  {name:"São José", lat:-29.1465271, lon:-51.1912221, city:"Caxias do Sul"},
+  {name:"Charqueadas", lat:-29.186652, lon:-51.218688, city:"Caxias do Sul"},
+  {name:"Cristo Redentor", lat:-29.1785755, lon:-51.166382, city:"Caxias do Sul"},
+  {name:"De Zorzi", lat:-29.1584058, lon:-51.1344705, city:"Caxias do Sul"},
+  {name:"Santo Antônio", lat:-29.1047222, lon:-51.1269394, city:"Caxias do Sul"},
+  {name:"Belo Horizonte", lat:-29.1196978, lon:-51.1729301, city:"Caxias do Sul"},
+  {name:"Pôr do Sol", lat:-29.134179, lon:-51.1892607, city:"Caxias do Sul"},
+  {name:"Serrano", lat:-29.1148232, lon:-51.1305555, city:"Caxias do Sul"},
+  {name:"Centro", lat:-29.1657365, lon:-51.1755325, city:"Caxias do Sul"},
+  {name:"Planalto", lat:-29.1876237, lon:-51.1676891, city:"Caxias do Sul"},
+  {name:"Nossa Senhora do Rosário", lat:-29.1257877, lon:-51.1685398, city:"Caxias do Sul"},
+  {name:"São Ciro", lat:-29.1352176, lon:-51.1402449, city:"Caxias do Sul"},
+  {name:"São Pelegrino", lat:-29.167755, lon:-51.1886069, city:"Caxias do Sul"},
+  {name:"Exposição", lat:-29.1731093, lon:-51.1755325, city:"Caxias do Sul"},
+  {name:"Cinquentenário", lat:-29.1695341, lon:-51.205196, city:"Caxias do Sul"},
+  {name:"Rio Branco", lat:-29.1777006, lon:-51.1925297, city:"Caxias do Sul"},
+  {name:"Nossa Senhora de Fátima", lat:-29.1428347, lon:-51.1768398, city:"Caxias do Sul"},
+  {name:"Cruzeiro", lat:-29.1745296, lon:-51.1402449, city:"Caxias do Sul"},
+  {name:"Kayser", lat:-29.1860836, lon:-51.1990683, city:"Caxias do Sul"},
+  {name:"Sagrada Família", lat:-29.1472953, lon:-51.1611537, city:"Caxias do Sul"},
+  {name:"Universitário", lat:-29.1525598, lon:-51.1751385, city:"Caxias do Sul"},
+  {name:"Petrópolis", lat:-29.163372, lon:-51.1506985, city:"Caxias do Sul"},
+  {name:"Ana Rech", lat:-29.1056343, lon:-51.0919753, city:"Caxias do Sul"},
+  {name:"Forqueta", lat:-29.2135659, lon:-51.283438, city:"Caxias do Sul"},
+  {name:"Galópolis", lat:-29.2228011, lon:-51.166382, city:"Caxias do Sul"},
+  {name:"Vila Ipê", lat:-29.1205474, lon:-51.1846902, city:"Caxias do Sul"},
+  {name:"Marechal Floriano", lat:-29.1619336, lon:-51.1973398, city:"Caxias do Sul"},
+  {name:"Diamantina", lat:-29.1512912, lon:-51.129793, city:"Caxias do Sul"},
+  {name:"Salgado Filho", lat:-29.1938945, lon:-51.1859918, city:"Caxias do Sul"},
+  {name:"Santa Fé", lat:-29.1212363, lon:-51.1799803, city:"Caxias do Sul"},
+  // Cidades da região (pontos de partida/chegada comuns)
+  {name:"Bento Gonçalves", lat:-29.1667089, lon:-51.5169861, city:"Cidade"},
+  {name:"Farroupilha", lat:-29.2238257, lon:-51.3456056, city:"Cidade"},
+  {name:"Flores da Cunha", lat:-29.0293699, lon:-51.1814301, city:"Cidade"},
+  {name:"Garibaldi", lat:-29.2575746, lon:-51.5230809, city:"Cidade"},
+  {name:"Carlos Barbosa", lat:-29.2953565, lon:-51.5012456, city:"Cidade"},
+  {name:"Nova Petrópolis", lat:-29.3766026, lon:-51.1118952, city:"Cidade"},
+];
+
+const byName = n => DB.find(d => d.name === n);
+
+// ---------- POPULA SELECTS DE ORIGEM / DESTINO ----------
+const originSel = document.getElementById('origin');
+const destSel = document.getElementById('dest');
+[originSel, destSel].forEach(sel=>{
+  DB.forEach(d=>{
+    const opt = document.createElement('option');
+    opt.value = d.name;
+    opt.textContent = d.name + (d.city==="Cidade" ? "" : " · "+d.city);
+    sel.appendChild(opt);
+  });
+});
+originSel.value = "Bento Gonçalves";
+destSel.value = "Centro";
+
+// ---------- BUSCA / CHIPS DE BAIRROS ----------
+let selected = []; // array of names
+const searchInput = document.getElementById('search');
+const suggBox = document.getElementById('suggestions');
+const chipsBox = document.getElementById('chips');
+const chipsEmpty = document.getElementById('chipsEmpty');
+const generateBtn = document.getElementById('generateBtn');
+
+function renderSuggestions(){
+  const q = searchInput.value.trim().toLowerCase();
+  if(!q){ suggBox.classList.remove('show'); suggBox.innerHTML=''; return; }
+  const matches = DB.filter(d => d.name.toLowerCase().includes(q) && !selected.includes(d.name)).slice(0,8);
+  suggBox.innerHTML = '';
+  if(matches.length===0){
+    suggBox.innerHTML = '<div class="sugg-empty">Nenhum bairro encontrado na base.</div>';
+  } else {
+    matches.forEach(m=>{
+      const el = document.createElement('div');
+      el.className = 'sugg-item';
+      el.textContent = m.name + (m.city==="Cidade" ? "" : " · "+m.city);
+      el.addEventListener('click', ()=> addStop(m.name));
+      suggBox.appendChild(el);
+    });
+  }
+  suggBox.classList.add('show');
+}
+searchInput.addEventListener('input', renderSuggestions);
+searchInput.addEventListener('focus', renderSuggestions);
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.search-row')) suggBox.classList.remove('show');
+});
+searchInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    const q = searchInput.value.trim().toLowerCase();
+    const match = DB.find(d => d.name.toLowerCase() === q) ||
+                  DB.find(d => d.name.toLowerCase().includes(q) && !selected.includes(d.name));
+    if(match) addStop(match.name);
+  }
+});
+
+function addStop(name){
+  if(selected.includes(name)) return;
+  selected.push(name);
+  searchInput.value = '';
+  suggBox.classList.remove('show');
+  renderChips();
+}
+function removeStop(name){
+  selected = selected.filter(n=>n!==name);
+  renderChips();
+}
+function renderChips(){
+  chipsBox.innerHTML = '';
+  chipsEmpty.style.display = selected.length ? 'none' : 'block';
+  selected.forEach(name=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${name}</span>`;
+    const btn = document.createElement('button');
+    btn.textContent = '×';
+    btn.addEventListener('click', ()=> removeStop(name));
+    chip.appendChild(btn);
+    chipsBox.appendChild(chip);
+  });
+  generateBtn.disabled = selected.length === 0;
+}
+
+// ---------- CÁLCULO DE ROTA (Haversine + vizinho mais próximo + 2-opt) ----------
+function haversine(a, b){
+  const R = 6371;
+  const dLat = (b.lat-a.lat) * Math.PI/180;
+  const dLon = (b.lon-a.lon) * Math.PI/180;
+  const lat1 = a.lat * Math.PI/180, lat2 = b.lat * Math.PI/180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function pathDistance(path){
+  let d = 0;
+  for(let i=0;i<path.length-1;i++) d += haversine(path[i], path[i+1]);
+  return d;
+}
+
+function nearestNeighborRoute(start, waypoints, end){
+  let remaining = [...waypoints];
+  let route = [start];
+  let current = start;
+  while(remaining.length){
+    let bestIdx = 0, bestDist = Infinity;
+    remaining.forEach((w,i)=>{
+      const d = haversine(current, w);
+      if(d < bestDist){ bestDist = d; bestIdx = i; }
+    });
+    current = remaining.splice(bestIdx,1)[0];
+    route.push(current);
+  }
+  route.push(end);
+  return route;
+}
+
+// 2-opt otimização mantendo início e fim fixos
+function twoOpt(route){
+  let improved = true;
+  let best = [...route];
+  const n = best.length;
+  while(improved){
+    improved = false;
+    for(let i=1; i<n-2; i++){
+      for(let j=i+1; j<n-1; j++){
+        const newRoute = best.slice(0,i).concat(best.slice(i,j+1).reverse(), best.slice(j+1));
+        if(pathDistance(newRoute) < pathDistance(best) - 1e-9){
+          best = newRoute;
+          improved = true;
+        }
+      }
+    }
+  }
+  return best;
+}
+
+// ---------- MAPA ----------
+let map = null;
+let routeLayer = null;
+function initMap(){
+  if(map) return;
+  map = L.map('map', {zoomControl:true, attributionControl:false}).setView([-29.166, -51.18], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18}).addTo(map);
+}
+
+// Busca a rota real (por estrada) via OSRM — serviço público, sem chave de API
+async function fetchRoadRoute(route){
+  const coords = route.map(p => `${p.lon},${p.lat}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('OSRM respondeu ' + res.status);
+  const data = await res.json();
+  if(data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('Rota não encontrada');
+  const r = data.routes[0];
+  return {
+    geometry: r.geometry.coordinates.map(c => [c[1], c[0]]), // [lat,lon]
+    distanceKm: r.distance / 1000,
+    durationMin: r.duration / 60
+  };
+}
+
+function drawRoute(route, roadGeometry){
+  initMap();
+  if(routeLayer) map.removeLayer(routeLayer);
+  const group = L.layerGroup();
+  const stopLatLngs = route.map(p => [p.lat, p.lon]);
+  const lineLatLngs = roadGeometry && roadGeometry.length ? roadGeometry : stopLatLngs;
+
+  L.polyline(lineLatLngs, {
+    color:'#a875ff',
+    weight:5,
+    opacity:0.9,
+    lineCap:'round',
+    lineJoin:'round',
+    dashArray: roadGeometry ? null : '1,10'
+  }).addTo(group);
+
+  route.forEach((p, idx)=>{
+    const isEnd = idx===0 || idx===route.length-1;
+    const icon = L.divIcon({
+      className:'',
+      html:`<div style="
+        background:${isEnd?'#a875ff':'#1f2530'};
+        color:${isEnd?'#14171c':'#a875ff'};
+        border:2px solid #a875ff;
+        width:26px;height:26px;border-radius:6px;
+        display:flex;align-items:center;justify-content:center;
+        font-family:'JetBrains Mono',monospace;font-weight:600;font-size:11px;">
+        ${idx===0?'P':(idx===route.length-1?'F':idx)}
+      </div>`,
+      iconSize:[26,26], iconAnchor:[13,13]
+    });
+    L.marker([p.lat,p.lon], {icon}).bindTooltip(p.name, {direction:'top'}).addTo(group);
+  });
+
+  routeLayer = group.addTo(map);
+  map.fitBounds(L.latLngBounds(stopLatLngs).pad(0.2));
+}
+
+// ---------- GERAR ROTEIRO ----------
+generateBtn.addEventListener('click', async ()=>{
+  const start = byName(originSel.value);
+  const end = byName(destSel.value);
+  const waypoints = selected.map(byName).filter(Boolean);
+
+  let route = nearestNeighborRoute(start, waypoints, end);
+  route = twoOpt(route);
+
+  const body = document.getElementById('resultsBody');
+  body.innerHTML = '<div class="loading-note">Calculando rota por estrada…</div>';
+  generateBtn.disabled = true;
+  generateBtn.textContent = 'Calculando...';
+
+  let roadData = null;
+  try{
+    roadData = await fetchRoadRoute(route);
+  } catch(err){
+    roadData = null;
+  }
+
+  renderResults(route, roadData);
+  drawRoute(route, roadData ? roadData.geometry : null);
+
+  generateBtn.disabled = false;
+  generateBtn.textContent = 'Gerar roteiro';
+});
+
+function formatDuration(min){
+  const h = Math.floor(min/60);
+  const m = Math.round(min%60);
+  return h>0 ? `${h}h${m.toString().padStart(2,'0')}` : `${m} min`;
+}
+
+function renderResults(route, roadData){
+  const body = document.getElementById('resultsBody');
+  const straightTotal = pathDistance(route);
+  const total = roadData ? roadData.distanceKm : straightTotal;
+
+  let legsHtml = '';
+  let cumulative = 0;
+  route.forEach((p, idx)=>{
+    const isFirst = idx===0;
+    const isLast = idx===route.length-1;
+    let legText = '';
+    if(!isFirst){
+      const leg = haversine(route[idx-1], p);
+      cumulative += leg;
+      legText = isFirst ? '' : `~${leg.toFixed(1)} km deste ponto`;
+    } else {
+      legText = 'Ponto de partida';
+    }
+    legsHtml += `
+      <li class="stop ${isFirst?'origin':''} ${isLast?'dest':''}">
+        <div class="badge">${isFirst?'P':(isLast?'F':idx)}</div>
+        <div class="stop-name">${p.name}${isFirst?'<span class="stop-tag">Partida</span>':''}${isLast?'<span class="stop-tag">Chegada</span>':''}</div>
+        <div class="stop-leg">${legText}</div>
+      </li>`;
+  });
+
+  const mapsUrl = 'https://www.google.com/maps/dir/' + route.map(p => `${p.lat},${p.lon}`).join('/');
+  const whatsappUrl = buildWhatsappWazeUrl(route);
+
+  body.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="num">${total.toFixed(1)} km</div><div class="lbl">${roadData ? 'Distância por estrada' : 'Distância estimada (linha reta)'}</div></div>
+      ${roadData ? `<div class="stat"><div class="num">${formatDuration(roadData.durationMin)}</div><div class="lbl">Tempo estimado de viagem</div></div>` : ''}
+      <div class="stat"><div class="num">${route.length}</div><div class="lbl">Paradas na rota</div></div>
+    </div>
+    <ul class="route">${legsHtml}</ul>
+    ${!roadData ? '<div class="route-error">Não foi possível calcular a rota real por estrada agora — mostrando estimativa em linha reta. Os links abaixo continuam funcionando normalmente.</div>' : ''}
+    <div class="action-row">
+      <a class="maps-link" href="${mapsUrl}" target="_blank" rel="noopener">Abrir no Google Maps</a>
+      <a class="waze-link" href="${whatsappUrl}" target="_blank" rel="noopener">Enviar no WhatsApp (Waze)</a>
+    </div>
+    <div class="maps-note">O botão do WhatsApp monta uma mensagem com um link do Waze para cada parada, na ordem certa — quem receber toca em cada link para navegar até o próximo ponto.</div>
+  `;
+}
+
+// Monta a mensagem do WhatsApp com um link do Waze por parada, na ordem da rota
+function buildWhatsappWazeUrl(route){
+  const lines = ['🚚 *Roteiro de entregas*', ''];
+  route.forEach((p, idx)=>{
+    const label = idx===0 ? 'Partida' : (idx===route.length-1 ? 'Chegada' : `Parada ${idx}`);
+    const wazeUrl = `https://waze.com/ul?ll=${p.lat},${p.lon}&navigate=yes`;
+    lines.push(`${idx+1}. ${p.name} (${label})`);
+    lines.push(wazeUrl);
+    lines.push('');
+  });
+  const text = lines.join('\n');
+  return 'https://wa.me/?text=' + encodeURIComponent(text);
+}
+</script>
+</body>
+</html>
